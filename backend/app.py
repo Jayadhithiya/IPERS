@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import db
+from models import User
 
 # Import blueprints
 from routes.auth import auth_bp
@@ -18,7 +19,7 @@ from routes.common import common_bp
 def create_app():
     app = Flask(__name__)
     
-    # Configure CORS - allow all origins for development and local testing
+    # Configure CORS - allow all origins for development and GitHub Pages frontend
     CORS(app, resources={r"/*": {"origins": "*"}})
     
     # Configuration
@@ -50,6 +51,15 @@ def create_app():
     app.register_blueprint(faculty_bp, url_prefix='/api/faculty')
     app.register_blueprint(tpc_bp, url_prefix='/api/tpc')
     app.register_blueprint(common_bp, url_prefix='/api/common')
+
+    @app.route('/', methods=['GET'])
+    def index():
+        return jsonify({
+            'service': 'IPERS Backend API',
+            'status': 'running',
+            'health': '/health',
+            'api_base': '/api'
+        }), 200
     
     @app.route('/health', methods=['GET'])
     def health_check():
@@ -58,9 +68,12 @@ def create_app():
             'database': 'postgresql' if os.environ.get('DATABASE_URL') else 'sqlite-fallback'
         }), 200
         
-    # Create tables
+    # Create tables and auto-seed on first startup if empty
     with app.app_context():
         db.create_all()
+        if User.query.count() == 0:
+            from seed import populate_seed_data
+            populate_seed_data()
         
     return app
 
